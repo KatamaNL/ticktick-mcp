@@ -227,15 +227,16 @@ class TickTickClient:
         """Gets a specific task by project ID and task ID."""
         return self._make_request("GET", f"/project/{project_id}/task/{task_id}")
     
-    def create_task(self, title: str, project_id: str, content: str = None, 
-                   start_date: str = None, due_date: str = None, 
-                   priority: int = 0, is_all_day: bool = False) -> Dict:
+    def create_task(self, title: str, project_id: str, content: str = None,
+                   start_date: str = None, due_date: str = None,
+                   priority: int = 0, is_all_day: bool = False,
+                   tags: list = None) -> Dict:
         """Creates a new task."""
         data = {
             "title": title,
             "projectId": project_id
         }
-        
+
         if content:
             data["content"] = content
         if start_date:
@@ -246,18 +247,21 @@ class TickTickClient:
             data["priority"] = priority
         if is_all_day is not None:
             data["isAllDay"] = is_all_day
-            
+        if tags:
+            data["tags"] = tags
+
         return self._make_request("POST", "/task", data)
     
-    def update_task(self, task_id: str, project_id: str, title: str = None, 
-                   content: str = None, priority: int = None, 
-                   start_date: str = None, due_date: str = None) -> Dict:
+    def update_task(self, task_id: str, project_id: str, title: str = None,
+                   content: str = None, priority: int = None,
+                   start_date: str = None, due_date: str = None,
+                   is_all_day: bool = None, tags: list = None) -> Dict:
         """Updates an existing task."""
         data = {
             "id": task_id,
             "projectId": project_id
         }
-        
+
         if title:
             data["title"] = title
         if content:
@@ -268,7 +272,11 @@ class TickTickClient:
             data["startDate"] = start_date
         if due_date:
             data["dueDate"] = due_date
-            
+        if is_all_day is not None:
+            data["isAllDay"] = is_all_day
+        if tags:
+            data["tags"] = tags
+
         return self._make_request("POST", f"/task/{task_id}", data)
     
     def complete_task(self, project_id: str, task_id: str) -> Dict:
@@ -304,5 +312,45 @@ class TickTickClient:
             data["content"] = content
         if priority is not None:
             data["priority"] = priority
-            
+
         return self._make_request("POST", "/task", data)
+
+    def get_completed_tasks(self, project_ids: list = None,
+                            start_date: str = None, end_date: str = None) -> list:
+        """Get completed tasks filtered by projects and date range."""
+        data = {}
+        if project_ids:
+            data["projectIds"] = project_ids
+        if start_date:
+            data["startDate"] = start_date
+        if end_date:
+            data["endDate"] = end_date
+        return self._make_request("POST", "/task/completed", data)
+
+    def filter_tasks(self, project_ids: list = None,
+                     start_date: str = None, end_date: str = None,
+                     priority: list = None, tags: list = None,
+                     status: list = None) -> list:
+        """Filter tasks by various criteria."""
+        data = {}
+        if project_ids:
+            data["projectIds"] = project_ids
+        if start_date:
+            data["startDate"] = start_date
+        if end_date:
+            data["endDate"] = end_date
+        if priority:
+            data["proiority"] = priority  # Note: API has a typo, this is intentional!
+        if tags:
+            data["tag"] = tags
+        if status:
+            data["status"] = status
+        return self._make_request("POST", "/task/filter", data)
+
+    def move_tasks(self, moves: list) -> list:
+        """Move tasks between projects.
+
+        Args:
+            moves: List of dicts with fromProjectId, toProjectId, taskId
+        """
+        return self._make_request("POST", "/task/move", moves)
