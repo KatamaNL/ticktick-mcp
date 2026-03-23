@@ -256,7 +256,13 @@ class TickTickClient:
                    content: str = None, priority: int = None,
                    start_date: str = None, due_date: str = None,
                    is_all_day: bool = None, tags: list = None) -> Dict:
-        """Updates an existing task."""
+        """Updates an existing task. Preserves isAllDay if not explicitly set."""
+        # Preserve isAllDay from current task when not explicitly provided
+        if is_all_day is None:
+            current = self.get_task(project_id, task_id)
+            if isinstance(current, dict) and 'error' not in current:
+                is_all_day = current.get('isAllDay')
+
         data = {
             "id": task_id,
             "projectId": project_id

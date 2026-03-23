@@ -574,18 +574,20 @@ def _validate_task_data(task_data: Dict[str, Any], task_index: int) -> Optional[
     for date_field in ['start_date', 'due_date']:
         date_str = task_data.get(date_field)
         if date_str:
-            try:
-                # Try to parse the date to validate it
-                # Handle both with and without timezone info
-                if date_str.endswith('Z'):
-                    datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                elif '+' in date_str or date_str.endswith(('00', '30')):
-                    datetime.fromisoformat(date_str)
-                else:
-                    # Assume local timezone if no timezone specified
-                    datetime.fromisoformat(date_str)
-            except ValueError:
-                return f"Task {task_index + 1}: Invalid {date_field} format '{date_str}'. Use ISO format: YYYY-MM-DDTHH:mm:ss or with timezone"
+            # Accept Dutch aliases and YYYY-MM-DD (handled by parse_local_date later)
+            if len(date_str) <= 12:
+                try:
+                    parse_local_date(date_str)
+                except ValueError:
+                    return f"Task {task_index + 1}: Invalid {date_field} format '{date_str}'. Use YYYY-MM-DD, 'vandaag', 'morgen', or ISO format"
+            else:
+                try:
+                    if date_str.endswith('Z'):
+                        datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                    else:
+                        datetime.fromisoformat(date_str)
+                except ValueError:
+                    return f"Task {task_index + 1}: Invalid {date_field} format '{date_str}'. Use YYYY-MM-DD, 'vandaag', 'morgen', or ISO format"
     
     return None
 
@@ -898,6 +900,20 @@ async def batch_create_tasks(tasks: List[Dict[str, Any]]) -> str:
                 due_date = task_data.get('due_date')
                 priority = task_data.get('priority', 0)
                 is_all_day = task_data.get('is_all_day', True)
+                tags = task_data.get('tags')
+
+                # Smart date parsing - accept YYYY-MM-DD or Dutch aliases
+                for field in ['start_date', 'due_date']:
+                    val = task_data.get(field)
+                    if val and len(val) <= 12:
+                        try:
+                            parsed = to_ticktick_utc(parse_local_date(val))
+                            if field == 'start_date':
+                                start_date = parsed
+                            else:
+                                due_date = parsed
+                        except ValueError:
+                            pass  # validation already caught bad formats
 
                 # Create the task
                 result = ticktick.create_task(
@@ -907,7 +923,8 @@ async def batch_create_tasks(tasks: List[Dict[str, Any]]) -> str:
                     start_date=start_date,
                     due_date=due_date,
                     priority=priority,
-                    is_all_day=is_all_day
+                    is_all_day=is_all_day,
+                    tags=tags
                 )
                 
                 if 'error' in result:
