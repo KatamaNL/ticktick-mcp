@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-03-23 (v2)
+
+### Fixed
+- **start_date sync bug (CRITICAL)**: `create_task`, `update_task`, `batch_create_tasks`, `batch_update_tasks` now auto-set `start_date = due_date` when `due_date` is provided but `start_date` is not. TickTick's "Today" view uses `startDate` to display tasks, so without this fix tasks with only `dueDate` set would still appear in "Today" even after rescheduling.
+
+### Added
+- `update_project` MCP tool: update project name, color, viewMode, and kind
+- `desc` field support in `create_task`, `update_task`, `batch_create_tasks`, `batch_update_tasks` (checklist description)
+- `reminders` field support in `create_task`, `update_task`, `batch_create_tasks`, `batch_update_tasks` (e.g. `["TRIGGER:PT0S"]`)
+- `items` field support in `create_task`, `update_task`, `batch_create_tasks`, `batch_update_tasks` (inline subtasks array)
+- `format_task` now displays `desc`, `reminders` fields in output
+- Tests for all new features in `tests/test_start_date_sync.py`
+
 ## 2026-03-23
 
 ### Fixed

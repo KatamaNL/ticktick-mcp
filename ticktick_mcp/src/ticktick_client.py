@@ -228,9 +228,11 @@ class TickTickClient:
         return self._make_request("GET", f"/project/{project_id}/task/{task_id}")
     
     def create_task(self, title: str, project_id: str, content: str = None,
+                   desc: str = None,
                    start_date: str = None, due_date: str = None,
                    priority: int = 0, is_all_day: bool = False,
-                   tags: list = None) -> Dict:
+                   tags: list = None, reminders: list = None,
+                   items: list = None) -> Dict:
         """Creates a new task."""
         data = {
             "title": title,
@@ -239,6 +241,8 @@ class TickTickClient:
 
         if content:
             data["content"] = content
+        if desc:
+            data["desc"] = desc
         if start_date:
             data["startDate"] = start_date
         if due_date:
@@ -249,13 +253,18 @@ class TickTickClient:
             data["isAllDay"] = is_all_day
         if tags:
             data["tags"] = tags
+        if reminders:
+            data["reminders"] = reminders
+        if items:
+            data["items"] = items
 
         return self._make_request("POST", "/task", data)
     
     def update_task(self, task_id: str, project_id: str, title: str = None,
-                   content: str = None, priority: int = None,
+                   content: str = None, desc: str = None, priority: int = None,
                    start_date: str = None, due_date: str = None,
-                   is_all_day: bool = None, tags: list = None) -> Dict:
+                   is_all_day: bool = None, tags: list = None,
+                   reminders: list = None, items: list = None) -> Dict:
         """Updates an existing task. Preserves isAllDay if not explicitly set."""
         # Preserve isAllDay from current task when not explicitly provided
         if is_all_day is None:
@@ -272,6 +281,8 @@ class TickTickClient:
             data["title"] = title
         if content:
             data["content"] = content
+        if desc:
+            data["desc"] = desc
         if priority is not None:
             data["priority"] = priority
         if start_date:
@@ -282,6 +293,10 @@ class TickTickClient:
             data["isAllDay"] = is_all_day
         if tags:
             data["tags"] = tags
+        if reminders:
+            data["reminders"] = reminders
+        if items:
+            data["items"] = items
 
         return self._make_request("POST", f"/task/{task_id}", data)
     

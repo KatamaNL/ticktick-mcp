@@ -93,7 +93,16 @@ def format_task(task: Dict) -> str:
     # Add content if available
     if task.get('content'):
         formatted += f"\nContent:\n{task.get('content')}\n"
-    
+
+    # Add desc if available
+    if task.get('desc'):
+        formatted += f"\nDescription:\n{task.get('desc')}\n"
+
+    # Add reminders if available
+    reminders = task.get('reminders', [])
+    if reminders:
+        formatted += f"Reminders: {', '.join(reminders)}\n"
+
     # Add subtasks if available
     items = task.get('items', [])
     if items:
@@ -234,11 +243,14 @@ async def create_task(
     title: str,
     project_id: str,
     content: str = None,
+    desc: str = None,
     start_date: str = None,
     due_date: str = None,
     priority: int = 0,
     is_all_day: bool = True,
-    tags: List[str] = None
+    tags: List[str] = None,
+    reminders: List[str] = None,
+    items: List[Dict[str, Any]] = None
 ) -> str:
     """
     Create a new task in TickTick.
@@ -246,12 +258,15 @@ async def create_task(
     Args:
         title: Task title
         project_id: ID of the project to add the task to
-        content: Task description/content (optional)
-        start_date: Start date - YYYY-MM-DD, "vandaag"/"morgen"/"overmorgen", or full ISO format (optional)
+        content: Task content (optional)
+        desc: Task description/checklist description (optional)
+        start_date: Start date - YYYY-MM-DD, "vandaag"/"morgen"/"overmorgen", or full ISO format (optional). Auto-synced to due_date if not provided.
         due_date: Due date - YYYY-MM-DD, "vandaag"/"morgen"/"overmorgen", or full ISO format (optional)
         priority: Priority level (0: None, 1: Low, 3: Medium, 5: High) (optional)
         is_all_day: Set to true for all-day tasks (default: true). Set to false only when a specific time is needed.
         tags: List of tags to assign to the task (optional)
+        reminders: List of reminder triggers, e.g. ["TRIGGER:P0DT9H0M0S", "TRIGGER:PT0S"] (optional)
+        items: List of subtask dicts with title, status (0/1), sortOrder, etc. (optional)
     """
     if not ticktick:
         if not initialize_client():
@@ -273,6 +288,11 @@ async def create_task(
         except ValueError as e:
             return str(e)
 
+    # Auto-sync start_date to due_date if due_date is set but start_date is not.
+    # TickTick's "Today" view uses startDate, so without this tasks won't show correctly.
+    if due_date and not start_date:
+        start_date = due_date
+
     try:
         # Validate dates if provided (for full ISO strings that weren't converted above)
         for date_str, date_name in [(start_date, "start_date"), (due_date, "due_date")]:
@@ -287,11 +307,14 @@ async def create_task(
             title=title,
             project_id=project_id,
             content=content,
+            desc=desc,
             start_date=start_date,
             due_date=due_date,
             priority=priority,
             is_all_day=is_all_day,
-            tags=tags
+            tags=tags,
+            reminders=reminders,
+            items=items
         )
 
         if 'error' in task:
@@ -308,11 +331,14 @@ async def update_task(
     project_id: str,
     title: str = None,
     content: str = None,
+    desc: str = None,
     start_date: str = None,
     due_date: str = None,
     priority: int = None,
     is_all_day: bool = None,
-    tags: List[str] = None
+    tags: List[str] = None,
+    reminders: List[str] = None,
+    items: List[Dict[str, Any]] = None
 ) -> str:
     """
     Update an existing task in TickTick.
@@ -321,12 +347,15 @@ async def update_task(
         task_id: ID of the task to update
         project_id: ID of the project the task belongs to
         title: New task title (optional)
-        content: New task description/content (optional)
-        start_date: New start date - YYYY-MM-DD, "vandaag"/"morgen"/"overmorgen", or full ISO format (optional)
+        content: New task content (optional)
+        desc: New task description/checklist description (optional)
+        start_date: New start date - YYYY-MM-DD, "vandaag"/"morgen"/"overmorgen", or full ISO format (optional). Auto-synced to due_date if not provided.
         due_date: New due date - YYYY-MM-DD, "vandaag"/"morgen"/"overmorgen", or full ISO format (optional)
         priority: New priority level (0: None, 1: Low, 3: Medium, 5: High) (optional)
         is_all_day: Set to true for all-day tasks (no time displayed) (optional)
         tags: List of tags to assign to the task (optional)
+        reminders: List of reminder triggers, e.g. ["TRIGGER:P0DT9H0M0S", "TRIGGER:PT0S"] (optional)
+        items: List of subtask dicts with title, status (0/1), sortOrder, etc. (optional)
     """
     if not ticktick:
         if not initialize_client():
@@ -348,6 +377,11 @@ async def update_task(
         except ValueError as e:
             return str(e)
 
+    # Auto-sync start_date to due_date if due_date is set but start_date is not.
+    # TickTick's "Today" view uses startDate, so without this tasks won't show correctly.
+    if due_date and not start_date:
+        start_date = due_date
+
     try:
         # Validate dates if provided (for full ISO strings that weren't converted above)
         for date_str, date_name in [(start_date, "start_date"), (due_date, "due_date")]:
@@ -363,11 +397,14 @@ async def update_task(
             project_id=project_id,
             title=title,
             content=content,
+            desc=desc,
             start_date=start_date,
             due_date=due_date,
             priority=priority,
             is_all_day=is_all_day,
-            tags=tags
+            tags=tags,
+            reminders=reminders,
+            items=items
         )
 
         if 'error' in task:
@@ -460,6 +497,53 @@ async def create_project(
     except Exception as e:
         logger.error(f"Error in create_project: {e}")
         return f"Error creating project: {str(e)}"
+
+@mcp.tool()
+async def update_project(
+    project_id: str,
+    name: str = None,
+    color: str = None,
+    view_mode: str = None,
+    kind: str = None
+) -> str:
+    """
+    Update an existing project in TickTick.
+
+    Args:
+        project_id: ID of the project to update
+        name: New project name (optional)
+        color: New color code in hex format, e.g. "#F18181" (optional)
+        view_mode: New view mode - one of list, kanban, or timeline (optional)
+        kind: Project kind - TASK or NOTE (optional)
+    """
+    if not ticktick:
+        if not initialize_client():
+            return "Failed to initialize TickTick client. Please check your API credentials."
+
+    # Validate view_mode if provided
+    if view_mode is not None and view_mode not in ["list", "kanban", "timeline"]:
+        return "Invalid view_mode. Must be one of: list, kanban, timeline."
+
+    # Validate kind if provided
+    if kind is not None and kind not in ["TASK", "NOTE"]:
+        return "Invalid kind. Must be one of: TASK, NOTE."
+
+    try:
+        project = ticktick.update_project(
+            project_id=project_id,
+            name=name,
+            color=color,
+            view_mode=view_mode,
+            kind=kind
+        )
+
+        if 'error' in project:
+            return f"Error updating project: {project['error']}"
+
+        return f"Project updated successfully:\n\n" + format_project(project)
+    except Exception as e:
+        logger.error(f"Error in update_project: {e}")
+        return f"Error updating project: {str(e)}"
 
 @mcp.tool()
 async def delete_project(project_id: str) -> str:
@@ -915,16 +999,24 @@ async def batch_create_tasks(tasks: List[Dict[str, Any]]) -> str:
                         except ValueError:
                             pass  # validation already caught bad formats
 
+                # Auto-sync start_date to due_date if due_date is set but start_date is not.
+                # TickTick's "Today" view uses startDate, so without this tasks won't show correctly.
+                if due_date and not start_date:
+                    start_date = due_date
+
                 # Create the task
                 result = ticktick.create_task(
                     title=title,
                     project_id=project_id,
                     content=content,
+                    desc=task_data.get('desc'),
                     start_date=start_date,
                     due_date=due_date,
                     priority=priority,
                     is_all_day=is_all_day,
-                    tags=tags
+                    tags=tags,
+                    reminders=task_data.get('reminders'),
+                    items=task_data.get('items'),
                 )
                 
                 if 'error' in result:
@@ -1234,7 +1326,7 @@ async def batch_update_tasks(updates: List[Dict[str, Any]]) -> str:
     Update multiple tasks at once.
     Args:
         updates: List of dicts. Each must have task_id and project_id.
-                Optional: title, content, start_date, due_date, priority, is_all_day, tags.
+                Optional: title, content, desc, start_date, due_date, priority, is_all_day, tags, reminders, items.
                 Dates accept YYYY-MM-DD or "vandaag"/"morgen".
     """
     if not ticktick:
@@ -1247,12 +1339,18 @@ async def batch_update_tasks(updates: List[Dict[str, Any]]) -> str:
                 val = u.get(field)
                 if val and len(val) <= 12:
                     u[field] = to_ticktick_utc(parse_local_date(val))
+            # Auto-sync start_date to due_date if due_date is set but start_date is not.
+            # TickTick's "Today" view uses startDate, so without this tasks won't show correctly.
+            if u.get("due_date") and not u.get("start_date"):
+                u["start_date"] = u["due_date"]
             r = ticktick.update_task(
                 task_id=u["task_id"], project_id=u["project_id"],
                 title=u.get("title"), content=u.get("content"),
+                desc=u.get("desc"),
                 start_date=u.get("start_date"), due_date=u.get("due_date"),
                 priority=u.get("priority"), is_all_day=u.get("is_all_day"),
-                tags=u.get("tags"),
+                tags=u.get("tags"), reminders=u.get("reminders"),
+                items=u.get("items"),
             )
             if isinstance(r, dict) and 'error' in r:
                 failed.append(f"{u['task_id']}: {r['error']}")

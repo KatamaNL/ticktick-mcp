@@ -139,11 +139,12 @@ Once connected, you'll see the TickTick MCP server tools available in Claude, in
 | `get_project` | Get details about a specific project | `project_id` |
 | `get_project_tasks` | List all tasks in a project | `project_id` |
 | `get_task` | Get details about a specific task | `project_id`, `task_id` |
-| `create_task` | Create a new task | `title`, `project_id`, `content` (optional), `start_date` (optional), `due_date` (optional), `priority` (optional) |
-| `update_task` | Update an existing task | `task_id`, `project_id`, `title` (optional), `content` (optional), `start_date` (optional), `due_date` (optional), `priority` (optional) |
+| `create_task` | Create a new task | `title`, `project_id`, `content` (opt), `desc` (opt), `start_date` (opt), `due_date` (opt), `priority` (opt), `reminders` (opt), `items` (opt) |
+| `update_task` | Update an existing task | `task_id`, `project_id`, `title` (opt), `content` (opt), `desc` (opt), `start_date` (opt), `due_date` (opt), `priority` (opt), `reminders` (opt), `items` (opt) |
 | `complete_task` | Mark a task as complete | `project_id`, `task_id` |
 | `delete_task` | Delete a task | `project_id`, `task_id` |
 | `create_project` | Create a new project | `name`, `color` (optional), `view_mode` (optional) |
+| `update_project` | Update an existing project | `project_id`, `name` (opt), `color` (opt), `view_mode` (opt), `kind` (opt) |
 | `delete_project` | Delete a project | `project_id` |
 
 ## Task-specific MCP Tools
