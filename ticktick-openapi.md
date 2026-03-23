@@ -655,6 +655,170 @@ Authorization: Bearer {{token}}
 ```
 
 
+#### Move Task
+```
+POST /open/v1/task/move
+```
+
+Moves one or more tasks between projects.
+
+##### Request Body
+
+A JSON array containing task move operations.
+
+| Type     | Name                          | Description                       | Schema |
+| -------- | ----------------------------- | --------------------------------- | ------ |
+| **Body** | **fromProjectId** *required*  | The ID of the source project      | string |
+| **Body** | **toProjectId** *required*    | The ID of the destination project | string |
+| **Body** | **taskId** *required*         | The ID of the task to move        | string |
+
+##### Responses
+| HTTP Code | Description  | Schema                                    |
+| --------- | ------------ | ----------------------------------------- |
+| **200**   | OK           | Returns array of move results (id + etag) |
+| **401**   | Unauthorized | No Content                                |
+| **403**   | Forbidden    | No Content                                |
+| **404**   | Not Found    | No Content                                |
+
+##### Example
+###### Request
+```http
+POST /open/v1/task/move HTTP/1.1
+Host: api.ticktick.com
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+  {
+    "fromProjectId": "{{sourceProjectId}}",
+    "toProjectId": "{{destProjectId}}",
+    "taskId": "{{taskId}}"
+  }
+]
+```
+
+###### Response
+```json
+[
+  {
+    "id": "{{taskId}}",
+    "etag": "abc123"
+  }
+]
+```
+
+
+#### List Completed Tasks
+```
+POST /open/v1/task/completed
+```
+
+Retrieves a list of tasks marked as completed within specific projects and a given time range.
+
+##### Request Body
+
+A JSON object containing filter criteria. All fields are optional.
+
+| Type     | Name            | Description                                                    | Schema |
+| -------- | --------------- | -------------------------------------------------------------- | ------ |
+| **Body** | **projectIds**  | List of project identifiers                                    | list   |
+| **Body** | **startDate**   | Start of time range (inclusive). completedTime >= startDate     | date   |
+| **Body** | **endDate**     | End of time range (inclusive). completedTime <= endDate         | date   |
+
+##### Responses
+| HTTP Code | Description  | Schema           |
+| --------- | ------------ | ---------------- |
+| **200**   | OK           | < Task > array   |
+| **401**   | Unauthorized | No Content       |
+| **403**   | Forbidden    | No Content       |
+| **404**   | Not Found    | No Content       |
+
+##### Example
+###### Request
+```http
+POST /open/v1/task/completed HTTP/1.1
+Host: api.ticktick.com
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "projectIds": ["{{projectId}}"],
+  "startDate": "2026-03-01T00:00:00.000+0000",
+  "endDate": "2026-03-05T23:59:59.000+0000"
+}
+```
+
+###### Response
+```json
+[
+  {
+    "id": "{{taskId}}",
+    "projectId": "{{projectId}}",
+    "title": "Completed task",
+    "completedTime": "2026-03-04T23:58:20.000+0000",
+    "status": 2
+  }
+]
+```
+
+
+#### Filter Tasks
+```
+POST /open/v1/task/filter
+```
+
+Retrieves a list of tasks based on advanced filtering criteria.
+
+##### Parameters
+
+| Type     | Name           | Description                                                              | Schema |
+| -------- | -------------- | ------------------------------------------------------------------------ | ------ |
+| **Body** | **projectIds** | Filter by project IDs                                                    | list   |
+| **Body** | **startDate**  | Filter tasks where startDate >= this value                               | date   |
+| **Body** | **endDate**    | Filter tasks where startDate <= this value                               | date   |
+| **Body** | **proiority**  | Filter by priority levels: 0=None, 1=Low, 3=Medium, 5=High              | list   |
+| **Body** | **tag**        | Filter tasks containing all specified tags                               | list   |
+| **Body** | **status**     | Filter by status codes: [0]=Open, [2]=Completed                         | list   |
+
+> **Note:** The `proiority` field name is a typo in the TickTick API. It must be spelled this way.
+
+##### Responses
+| HTTP Code | Description  | Schema           |
+| --------- | ------------ | ---------------- |
+| **200**   | OK           | < Task > array   |
+| **401**   | Unauthorized | No Content       |
+| **403**   | Forbidden    | No Content       |
+| **404**   | Not Found    | No Content       |
+
+##### Example
+###### Request
+```http
+POST /open/v1/task/filter HTTP/1.1
+Host: api.ticktick.com
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "projectIds": ["{{projectId}}"],
+  "status": [0],
+  "tag": ["urgent"]
+}
+```
+
+###### Response
+```json
+[
+  {
+    "id": "{{taskId}}",
+    "projectId": "{{projectId}}",
+    "title": "Urgent task",
+    "tags": ["urgent"],
+    "status": 0
+  }
+]
+```
+
+
 ## Definitions
 
 ### ChecklistItem
