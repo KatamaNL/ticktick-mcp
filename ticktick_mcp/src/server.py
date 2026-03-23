@@ -1058,7 +1058,8 @@ async def get_completed_tasks(
 
     try:
         sd = to_ticktick_utc(parse_local_date(start_date)) if start_date else None
-        ed = to_ticktick_utc(parse_local_date(end_date)) if end_date else None
+        # end_date +1 day to make range inclusive (API filters completedTime <= endDate)
+        ed = to_ticktick_utc(parse_local_date(end_date) + timedelta(days=1)) if end_date else None
     except ValueError as e:
         return str(e)
 
@@ -1102,12 +1103,19 @@ async def filter_tasks(
 
     try:
         sd = to_ticktick_utc(parse_local_date(start_date)) if start_date else None
-        ed = to_ticktick_utc(parse_local_date(end_date)) if end_date else None
+        # end_date +1 day to make range inclusive (API filters startDate <= endDate)
+        ed = to_ticktick_utc(parse_local_date(end_date) + timedelta(days=1)) if end_date else None
     except ValueError as e:
         return str(e)
 
+    # TickTick API requires projectIds when using date filters (500 without)
+    pids = project_ids
+    if (sd or ed) and not pids:
+        projects = ticktick.get_projects()
+        pids = [p["id"] for p in projects if isinstance(p, dict) and "id" in p]
+
     try:
-        tasks = ticktick.filter_tasks(project_ids, sd, ed, priority, tags, status)
+        tasks = ticktick.filter_tasks(pids, sd, ed, priority, tags, status)
         if isinstance(tasks, dict) and 'error' in tasks:
             return f"Error: {tasks['error']}"
         if not tasks:
