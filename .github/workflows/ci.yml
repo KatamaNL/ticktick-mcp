@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python:
+    uses: KatamaNL/.github/.github/workflows/python-ci.yml@main
+    with:
+      python_version: '3.12'
+      package_manager: 'pip'
+      src_dir: '.'
+      run_tests: true
