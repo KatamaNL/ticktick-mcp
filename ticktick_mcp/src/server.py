@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
 
 from .ticktick_client import TickTickClient
-from .timezone import format_local_date, parse_local_date, to_ticktick_utc
+from .timezone import format_local_date, from_ticktick_utc, parse_local_date, to_ticktick_utc
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -1186,6 +1186,35 @@ async def get_completed_tasks(
         return f"Error: {str(e)}"
 
 
+def _filter_tasks_client_side(tasks: list, project_ids: list = None,
+                              local_start=None, local_end=None,
+                              priority: list = None, tags: list = None,
+                              status: list = None) -> list:
+    """Filter tasks client-side as fallback when TickTick API fails."""
+    filtered = []
+    for t in tasks:
+        if project_ids and t.get("projectId") not in project_ids:
+            continue
+        if local_start or local_end:
+            task_date = from_ticktick_utc(t.get("startDate") or t.get("dueDate"))
+            if task_date is None:
+                continue
+            if local_start and task_date < local_start:
+                continue
+            if local_end and task_date > local_end:
+                continue
+        if priority and t.get("priority", 0) not in priority:
+            continue
+        if tags:
+            task_tags = t.get("tags", []) or []
+            if not all(tag in task_tags for tag in tags):
+                continue
+        if status is not None and t.get("status", 0) not in status:
+            continue
+        filtered.append(t)
+    return filtered
+
+
 @mcp.tool()
 async def filter_tasks(
     project_ids: List[str] = None,
@@ -1221,20 +1250,42 @@ async def filter_tasks(
     pids = project_ids
     if (sd or ed) and not pids:
         projects = ticktick.get_projects()
-        pids = [p["id"] for p in projects if isinstance(p, dict) and "id" in p]
+        # Only include TASK-kind projects; NOTE projects cause API 500
+        pids = [p["id"] for p in projects if isinstance(p, dict) and "id" in p
+                and p.get("kind", "TASK") == "TASK"]
+
+    # Parse local dates for client-side fallback comparison
+    local_start = parse_local_date(start_date) if start_date else None
+    local_end = parse_local_date(end_date) if end_date else None
 
     try:
         tasks = ticktick.filter_tasks(pids, sd, ed, priority, tags, status)
         if isinstance(tasks, dict) and 'error' in tasks:
-            return f"Error: {tasks['error']}"
-        if not tasks:
-            return "No tasks match the filter."
-        result = f"Found {len(tasks)} tasks:\n\n"
-        for i, task in enumerate(tasks, 1):
-            result += f"Task {i}:\n{format_task(task)}\n"
-        return result
-    except Exception as e:
-        return f"Error: {str(e)}"
+            raise RuntimeError(tasks['error'])
+        if not isinstance(tasks, list):
+            raise RuntimeError(f"Unexpected response: {tasks}")
+    except Exception:
+        # Fallback: fetch tasks per project and filter client-side
+        all_tasks = []
+        fetch_pids = pids or []
+        if not fetch_pids:
+            projects = ticktick.get_projects()
+            fetch_pids = [p["id"] for p in projects if isinstance(p, dict)
+                          and "id" in p and p.get("kind", "TASK") == "TASK"]
+        for pid in fetch_pids:
+            proj_data = ticktick.get_project_with_data(pid)
+            if isinstance(proj_data, dict):
+                all_tasks.extend(proj_data.get("tasks", []))
+        tasks = _filter_tasks_client_side(
+            all_tasks, pids, local_start, local_end, priority, tags, status
+        )
+
+    if not tasks:
+        return "No tasks match the filter."
+    result = f"Found {len(tasks)} tasks:\n\n"
+    for i, task in enumerate(tasks, 1):
+        result += f"Task {i}:\n{format_task(task)}\n"
+    return result
 
 
 @mcp.tool()
