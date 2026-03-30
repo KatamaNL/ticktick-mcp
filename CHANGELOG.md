@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-03-30
+
+### Fixed
+- `filter_tasks`: auto-fetch excludes NOTE-kind projects (only TASK projects), preventing TickTick API 500 errors
+- `filter_tasks`: client-side fallback when TickTick filter API returns 500 (fetches tasks per project and filters locally by project, date, priority, tags, status)
+
 ## 2026-03-23 (v2)
 
 ### Fixed
