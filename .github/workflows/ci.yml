@@ -11,6 +11,6 @@ jobs:
     uses: KatamaNL/.github/.github/workflows/python-ci.yml@main
     with:
       python_version: '3.12'
-      package_manager: 'pip'
+      package_manager: 'uv'
       src_dir: '.'
       run_tests: true

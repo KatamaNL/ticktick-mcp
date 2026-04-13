@@ -1,0 +1,23 @@
+[project]
+name = "ticktick-mcp"
+version = "0.1.0"
+description = "Model Context Protocol (MCP) server for TickTick task management"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.2.0,<2.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "requests>=2.30.0,<3.0.0",
+]
+
+[project.scripts]
+ticktick-mcp = "ticktick_mcp.cli:main"
+ticktick-auth = "ticktick_mcp.authenticate:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]

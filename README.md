@@ -216,8 +216,8 @@ For example:
 ticktick-mcp/
 ├── .env.template          # Template for environment variables
 ├── README.md              # Project documentation
-├── requirements.txt       # Project dependencies
-├── setup.py               # Package setup file
+├── pyproject.toml         # Project metadata and dependencies
+├── uv.lock                # Locked dependency versions
 ├── test_server.py         # Test script for server configuration
 └── ticktick_mcp/          # Main package
     ├── __init__.py        # Package initialization

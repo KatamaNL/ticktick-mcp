@@ -1,7 +1,7 @@
 """Tests for end_date inclusive range fix in get_completed_tasks and filter_tasks."""
-import pytest
+
 from datetime import date, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import asyncio
 
 from ticktick_mcp.src.timezone import parse_local_date, to_ticktick_utc
@@ -65,28 +65,28 @@ class TestEndDateInclusive:
 class TestFilterTasksAutoProjectIds:
     """Verify that filter_tasks auto-fetches project IDs when dates are used without project_ids."""
 
-    def test_auto_fetches_project_ids_when_dates_without_projects(self):
-        """When dates are set but project_ids is None, should auto-fetch all project IDs."""
+    def test_auto_fetches_only_task_projects(self):
+        """When auto-fetching, should exclude NOTE-kind projects."""
         import ticktick_mcp.src.server as server_mod
 
         mock_client = MagicMock()
         mock_client.get_projects.return_value = [
-            {"id": "proj1", "name": "P1"},
-            {"id": "proj2", "name": "P2"},
+            {"id": "proj1", "name": "P1", "kind": "TASK"},
+            {"id": "proj2", "name": "P2 Notes", "kind": "NOTE"},
+            {"id": "proj3", "name": "P3"},  # no kind = defaults to TASK
         ]
         mock_client.filter_tasks.return_value = []
 
         original = server_mod.ticktick
         server_mod.ticktick = mock_client
         try:
-            result = asyncio.run(server_mod.filter_tasks(
-                start_date="2026-03-22", end_date="2026-03-22"
-            ))
-            # Should have called get_projects to auto-fetch IDs
+            asyncio.run(
+                server_mod.filter_tasks(start_date="2026-03-22", end_date="2026-03-22")
+            )
             mock_client.get_projects.assert_called_once()
-            # Should have passed the project IDs to filter_tasks
             call_args = mock_client.filter_tasks.call_args
-            assert call_args[0][0] == ["proj1", "proj2"]
+            # Should only include TASK-kind projects (proj2 with NOTE excluded)
+            assert call_args[0][0] == ["proj1", "proj3"]
         finally:
             server_mod.ticktick = original
 
@@ -100,11 +100,13 @@ class TestFilterTasksAutoProjectIds:
         original = server_mod.ticktick
         server_mod.ticktick = mock_client
         try:
-            result = asyncio.run(server_mod.filter_tasks(
-                project_ids=["proj1"],
-                start_date="2026-03-22", end_date="2026-03-22"
-            ))
-            # Should NOT have called get_projects
+            asyncio.run(
+                server_mod.filter_tasks(
+                    project_ids=["proj1"],
+                    start_date="2026-03-22",
+                    end_date="2026-03-22",
+                )
+            )
             mock_client.get_projects.assert_not_called()
         finally:
             server_mod.ticktick = original
@@ -114,12 +116,120 @@ class TestFilterTasksAutoProjectIds:
         import ticktick_mcp.src.server as server_mod
 
         mock_client = MagicMock()
-        mock_client.filter_tasks.return_value = [{"id": "t1", "title": "Test", "projectId": "p1"}]
+        mock_client.filter_tasks.return_value = [
+            {"id": "t1", "title": "Test", "projectId": "p1"}
+        ]
 
         original = server_mod.ticktick
         server_mod.ticktick = mock_client
         try:
-            result = asyncio.run(server_mod.filter_tasks(status=[0]))
+            asyncio.run(server_mod.filter_tasks(status=[0]))
             mock_client.get_projects.assert_not_called()
         finally:
             server_mod.ticktick = original
+
+    def test_fallback_on_api_500(self):
+        """When filter API returns error, should fall back to client-side filtering."""
+        import ticktick_mcp.src.server as server_mod
+
+        mock_client = MagicMock()
+        mock_client.get_projects.return_value = [
+            {"id": "proj1", "name": "P1", "kind": "TASK"},
+        ]
+        mock_client.filter_tasks.return_value = {"error": "500 Server Error"}
+        mock_client.get_project_with_data.return_value = {
+            "tasks": [
+                {
+                    "id": "t1",
+                    "title": "Today task",
+                    "projectId": "proj1",
+                    "startDate": to_ticktick_utc(date(2026, 3, 22)),
+                    "status": 0,
+                    "priority": 3,
+                },
+                {
+                    "id": "t2",
+                    "title": "Tomorrow task",
+                    "projectId": "proj1",
+                    "startDate": to_ticktick_utc(date(2026, 3, 23)),
+                    "status": 0,
+                    "priority": 0,
+                },
+            ]
+        }
+
+        original = server_mod.ticktick
+        server_mod.ticktick = mock_client
+        try:
+            result = asyncio.run(
+                server_mod.filter_tasks(start_date="2026-03-22", end_date="2026-03-22")
+            )
+            # Should have fallen back to client-side filtering
+            mock_client.get_project_with_data.assert_called_once_with("proj1")
+            assert "Today task" in result
+            assert "Tomorrow task" not in result
+        finally:
+            server_mod.ticktick = original
+
+
+class TestFilterTasksClientSide:
+    """Test the _filter_tasks_client_side helper."""
+
+    def test_filter_by_project(self):
+        from ticktick_mcp.src.server import _filter_tasks_client_side
+
+        tasks = [
+            {"id": "t1", "projectId": "p1", "status": 0},
+            {"id": "t2", "projectId": "p2", "status": 0},
+        ]
+        result = _filter_tasks_client_side(tasks, project_ids=["p1"])
+        assert len(result) == 1
+        assert result[0]["id"] == "t1"
+
+    def test_filter_by_priority(self):
+        from ticktick_mcp.src.server import _filter_tasks_client_side
+
+        tasks = [
+            {"id": "t1", "priority": 5, "status": 0},
+            {"id": "t2", "priority": 0, "status": 0},
+        ]
+        result = _filter_tasks_client_side(tasks, priority=[5])
+        assert len(result) == 1
+        assert result[0]["id"] == "t1"
+
+    def test_filter_by_tags(self):
+        from ticktick_mcp.src.server import _filter_tasks_client_side
+
+        tasks = [
+            {"id": "t1", "tags": ["Dev", "Blogic"], "status": 0},
+            {"id": "t2", "tags": ["Admin"], "status": 0},
+            {"id": "t3", "status": 0},  # no tags
+        ]
+        result = _filter_tasks_client_side(tasks, tags=["Dev"])
+        assert len(result) == 1
+        assert result[0]["id"] == "t1"
+
+    def test_filter_by_status(self):
+        from ticktick_mcp.src.server import _filter_tasks_client_side
+
+        tasks = [
+            {"id": "t1", "status": 0},
+            {"id": "t2", "status": 2},
+        ]
+        result = _filter_tasks_client_side(tasks, status=[0])
+        assert len(result) == 1
+        assert result[0]["id"] == "t1"
+
+    def test_filter_by_date_range(self):
+        from ticktick_mcp.src.server import _filter_tasks_client_side
+
+        tasks = [
+            {"id": "t1", "startDate": to_ticktick_utc(date(2026, 3, 22)), "status": 0},
+            {"id": "t2", "startDate": to_ticktick_utc(date(2026, 3, 24)), "status": 0},
+            {"id": "t3", "status": 0},  # no date - excluded
+        ]
+        result = _filter_tasks_client_side(
+            tasks, local_start=date(2026, 3, 22), local_end=date(2026, 3, 23)
+        )
+        assert len(result) == 1
+        assert result[0]["id"] == "t1"

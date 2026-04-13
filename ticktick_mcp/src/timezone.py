@@ -5,6 +5,7 @@ adjusted for the user's timezone. For Europe/Amsterdam:
 - CET (winter, ~Nov-Mar 28): {date-1}T23:00:00+0000
 - CEST (summer, ~Mar 29-Oct): {date-1}T22:00:00+0000
 """
+
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
