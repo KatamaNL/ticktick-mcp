@@ -255,6 +255,7 @@ class TickTickClient:
         tags: list = None,
         reminders: list = None,
         items: list = None,
+        repeat_flag: str = None,
     ) -> Dict:
         """Creates a new task."""
         data = {"title": title, "projectId": project_id}
@@ -277,6 +278,8 @@ class TickTickClient:
             data["reminders"] = reminders
         if items:
             data["items"] = items
+        if repeat_flag:
+            data["repeatFlag"] = repeat_flag
 
         return self._make_request("POST", "/task", data)
 
@@ -294,6 +297,7 @@ class TickTickClient:
         tags: list = None,
         reminders: list = None,
         items: list = None,
+        repeat_flag: str = None,
     ) -> Dict:
         """Updates an existing task. Preserves isAllDay if not explicitly set."""
         # Preserve isAllDay from current task when not explicitly provided
@@ -324,6 +328,8 @@ class TickTickClient:
             data["reminders"] = reminders
         if items:
             data["items"] = items
+        if repeat_flag:
+            data["repeatFlag"] = repeat_flag
 
         return self._make_request("POST", f"/task/{task_id}", data)
 

@@ -269,6 +269,7 @@ async def create_task(
     tags: List[str] = None,
     reminders: List[str] = None,
     items: List[Dict[str, Any]] = None,
+    repeat_flag: str = None,
 ) -> str:
     """
     Create a new task in TickTick.
@@ -285,6 +286,7 @@ async def create_task(
         tags: List of tags to assign to the task (optional)
         reminders: List of reminder triggers, e.g. ["TRIGGER:P0DT9H0M0S", "TRIGGER:PT0S"] (optional)
         items: List of subtask dicts with title, status (0/1), sortOrder, etc. (optional)
+        repeat_flag: RRULE string for recurring tasks, e.g. "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=TH" for weekly on Thursday (optional)
     """
     if not ticktick:
         if not initialize_client():
@@ -333,6 +335,7 @@ async def create_task(
             tags=tags,
             reminders=reminders,
             items=items,
+            repeat_flag=repeat_flag,
         )
 
         if "error" in task:
@@ -358,6 +361,7 @@ async def update_task(
     tags: List[str] = None,
     reminders: List[str] = None,
     items: List[Dict[str, Any]] = None,
+    repeat_flag: str = None,
 ) -> str:
     """
     Update an existing task in TickTick.
@@ -375,6 +379,7 @@ async def update_task(
         tags: List of tags to assign to the task (optional)
         reminders: List of reminder triggers, e.g. ["TRIGGER:P0DT9H0M0S", "TRIGGER:PT0S"] (optional)
         items: List of subtask dicts with title, status (0/1), sortOrder, etc. (optional)
+        repeat_flag: RRULE string for recurring tasks, e.g. "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=TH" for weekly on Thursday (optional)
     """
     if not ticktick:
         if not initialize_client():
@@ -424,6 +429,7 @@ async def update_task(
             tags=tags,
             reminders=reminders,
             items=items,
+            repeat_flag=repeat_flag,
         )
 
         if "error" in task:
