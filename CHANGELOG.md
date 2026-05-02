@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-16
+
+### Added
+- `repeat_flag` parameter in `create_task` en `update_task`. Accepteert RRULE strings voor recurring taken, bijv. `RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=TH` voor wekelijks op donderdag (@herriaan)
+
 ## 2026-04-13
 
 ### Changed
